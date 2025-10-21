@@ -1,13 +1,17 @@
-
 #import "@preview/shiroa:0.2.3": *
 
-#show: book
+#show: book;
 
 #book-meta(
-  title: "shiroa",
+  title: "Chronicle 教程",
+  authors: ("G","a"),
   summary: [
-    #prefix-chapter("sample-page.typ")[Hello, typst]
-  ]
+    #prefix-chapter("introduction.typ")[简介]
+
+    #prefix-chapter("chapters/regions/0_regions.typ")[——区域介绍——]
+    - #chapter("chapters/regions/1_village.typ")[村庄]
+  ],
+  language: "zh"
 )
 
 #build-meta(
