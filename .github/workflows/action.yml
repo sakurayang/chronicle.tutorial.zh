@@ -41,7 +41,7 @@ jobs:
         with:
           shiroa-version: ^0.3
           allow-prereleases: true
-      - run: shiroa build --path-to-root /chronicle.tutorial.zh/ -w $(pwd) -d $(pwd)/dist --font-path $(pwd)/fonts $(pwd)/src
+      - run: shiroa build -w $(pwd) -d $(pwd)/dist --font-path $(pwd)/fonts $(pwd)/src
       
       - name: Setup Pages
         uses: actions/configure-pages@v5
