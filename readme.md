@@ -2,6 +2,10 @@
 
 [![CC BY-SA 4.0](https://img.shields.io/badge/CC--BY--SA--4.0-lightgrey?style=for-the-badge)](https://creativecommons.org/licenses/by-sa/4.0/)
 
+---
+
+[在线阅读](https://chronicle.bkwhentai.top/)
+
 init
 
 ```sh
