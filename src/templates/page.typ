@@ -1,21 +1,23 @@
 // This is important for shiroa to produce a responsive layout
 // and multiple targets.
 #import "@preview/shiroa:0.2.3": (
-  get-page-width, is-html-target, is-pdf-target, is-web-target, plain-text, shiroa-sys-target, templates,
+  get-page-width,
+  target,
+  is-web-target,
+  is-pdf-target,
+  is-html-target,
+  plain-text,
+  shiroa-sys-target,
+  templates,
 )
 #import templates: *
-#import "@preview/zh-kit:0.1.0": zhnumber-lower
 
 #let serif-family = ("煮豆黑體","寒蟬錦書宋",)
 #let sans-family = ("煮豆黑體","Sarasa Gothic SC")
 #let mono-family = ("Maple Mono",)
 
-/// The site theme to use. If we renders to static HTML, it is suggested to use `starlight`.
-/// otherwise, since `starlight` with dynamic SVG HTML is not supported, `mdbook` is used.
-/// The `is-html-target(exclude-wrapper: true)` is currently a bit internal so you shouldn't use it other place.
-#let web-theme = if is-html-target(exclude-wrapper: true) { "starlight" } else { "mdbook" }
-#let is-starlight-theme = web-theme == "starlight"
-
+#let use-theme = "starlight"
+#let is-starlight-theme = use-theme == "starlight"
 // Metadata
 #let page-width = get-page-width()
 #let is-html-target = is-html-target()
@@ -23,8 +25,14 @@
 #let is-web-target = is-web-target()
 #let sys-is-html-target = ("target" in dictionary(std))
 
+
+/// Creates an embedded block typst frame.
+#let div-frame(content, attrs: (:), tag: "div") = html.elem(tag, html.frame(content), attrs: attrs)
+#let span-frame = div-frame.with(tag: "span")
+#let p-frame = div-frame.with(tag: "p")
+
 // Theme (Colors)
-#let themes = theme-box-styles-from(toml("theme-style.toml"), read: it => read(it))
+#let themes = theme-box-styles-from(toml("theme-style.toml"), xml: it => xml(it))
 #let (
   default-theme: (
     style: theme-style,
@@ -67,18 +75,83 @@
   (28pt, 22pt, 14pt, 12pt, main-size)
 }
 #let list-indent = 0.5em
+#let in-heading = state("shiroa:in-heading", false)
 
-// Put your custom CSS here.
-#let extra-css = ```css
-.site-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  font-style: italic;
+#let mdbook-heading-rule(it) = {
+  let it = {
+    set text(size: heading-sizes.at(it.level))
+    if is-web-target {
+      heading-hash(it, hash-color: dash-color)
+    }
+
+    in-heading.update(true)
+    it
+    in-heading.update(false)
+  }
+
+  block(
+    spacing: 0.7em * 1.5 * 1.2,
+    below: 0.7em * 1.2,
+    it,
+  )
 }
-.active {
-  font-size: large;
+
+#let starlight-heading-rule(it) = context if shiroa-sys-target() == "html" {
+  // // Render a dash to hint headings instead of bolding it as well.
+  // show link: static-heading-link(it)
+  // // Render the heading hash
+  // heading-hash(it, hash-color: dash-color)
+
+  import "@preview/shiroa-starlight:0.2.3": builtin-icon
+
+  in-heading.update(true)
+  html.elem("div", attrs: (class: "sl-heading-wrapper level-h" + str(it.level + 1)))[
+    #it
+    #html.elem(
+      "h" + str(it.level + 1),
+      attrs: (class: "sl-heading-anchor not-content", role: "presentation"),
+      static-heading-link(it, body: builtin-icon("anchor"), canonical: true),
+    )
+  ]
+  in-heading.update(false)
+} else {
+  mdbook-heading-rule(it)
 }
-```
+
+#let equation-rules(body) = {
+  let get-main-color(theme) = {
+    if is-starlight-theme and theme.is-dark and in-heading.get() {
+      white
+    } else {
+      theme.main-color
+    }
+  }
+
+  show math.equation: set text(weight: 400)
+  show math.equation.where(block: true): it => context if shiroa-sys-target() == "html" {
+    theme-box(
+      tag: "div",
+      theme => {
+        set text(fill: get-main-color(theme))
+        p-frame(attrs: ("class": "block-equation", "role": "math"), it)
+      },
+    )
+  } else {
+    it
+  }
+  show math.equation.where(block: false): it => context if shiroa-sys-target() == "html" {
+    theme-box(
+      tag: "span",
+      theme => {
+        set text(fill: get-main-color(theme))
+        span-frame(attrs: (class: "inline-equation", "role": "math"), it)
+      },
+    )
+  } else {
+    it
+  }
+  body
+}
 
 /// The project show rule that is used by all pages.
 ///
@@ -125,18 +198,40 @@
     height: auto,
   ) if is-web-target and not is-html-target
 
-  let common = (
-    web-theme: web-theme,
-  )
+  show: if is-html-target {
+    import "@preview/shiroa-starlight:0.2.3": starlight
 
-  show: template-rules.with(
-    book-meta: include "/src/book.typ",
-    title: title,
-    description: description,
-    plain-body: plain-body,
-    extra-assets: (extra-css,),
-    ..common,
-  )
+    let description = if description != none { description } else {
+      let desc = plain-text(body, limit: 512).trim()
+      if desc.len() > 512 {
+        desc = desc.slice(0, 512) + "..."
+      }
+      desc
+    }
+
+    starlight.with(
+      include "/github-pages/docs/book.typ",
+      title: title,
+      site-title: [Shiroa],
+      description: description,
+      github-link: "https://github.com/Myriad-Dreamin/shiroa",
+    )
+  } else {
+    it => it
+  }
+
+  // let common = (
+  //   web-theme: web-theme,
+  // )
+
+  // show: template-rules.with(
+  //   book-meta: include "/src/book.typ",
+  //   title: title,
+  //   description: description,
+  //   plain-body: plain-body,
+  //   extra-assets: (extra-css,),
+  //   ..common,
+  // )
 
   // Set main text
   set text(
@@ -249,17 +344,17 @@
 
   // markup setting
   show: x-markup-rules.with(
-    ..common,
+    
     themes: themes,
     heading-sizes: heading-sizes,
     list-indent: list-indent,
     main-size: main-size,
   )
   // math setting
-  show: equation-rules.with(..common, theme-box: theme-box)
+  show: equation-rules
   // code block setting
   show: code-block-rules.with(
-    ..common, 
+     
     themes: themes,
     code-font: code-font,
   )
@@ -294,6 +389,28 @@
   show link: it => set-color(it, rgb("#126e82"))
 
   plain-body
+  
+  context if shiroa-sys-target() == "html" {
+    html.elem(
+      "style",
+      ```css
+      .inline-equation {
+        display: inline-block;
+        width: fit-content;
+      }
+      .block-equation {
+        display: grid;
+        place-items: center;
+        overflow-x: auto;
+      }
+      .site-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        font-style: italic;
+      }
+      ```.text,
+    )
+  }
 }
 
 #let part-style = heading
